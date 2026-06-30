@@ -1,0 +1,68 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: 'Target Device'
+        required: true
+        default: 'psyche'
+        type: choice
+        options:
+          - 'psyche'
+          - 'thyme'
+          - 'umi'
+          - 'munch'
+          - 'lmi'
+          - 'cmi'
+          - 'cas'
+          - 'apollo'
+          - 'alioth'
+          - 'elish'
+          - 'enuma'
+          - 'dagu'
+          - 'pipa'
+
+jobs:
+  build:
+    name: Build Kernel
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 1
+
+    - name: Cleanup Disk Space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential git curl wget bison flex zip bc cpio libssl-dev ccache python-is-python3
+        sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+    - name: Setup ReClang Toolchain
+      run: |
+        mkdir -p $HOME/ReClang
+        cd $HOME/ReClang
+        wget -q https://github.com/SaleOff/ReClang/releases/download/Signed/ReClang.tar.gz
+        tar -zxvf ReClang.tar.gz
+
+    - name: Build Kernel
+      run: |
+        chmod +x sign.sh
+        echo "Building with KernelSU..."
+        bash sign.sh ${{ github.event.inputs.device }} ksu
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: KernelSU-${{ github.event.inputs.device }}-Signed
+        path: ./*.zip
+        if-no-files-found: error
